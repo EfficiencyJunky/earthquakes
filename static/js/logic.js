@@ -7,6 +7,9 @@ var myMap = L.map("map", {
   // layers: [streetmap, earthquakes]
 });
 
+let minimumEarthquakeMagnitude = 1.5;
+
+
 let layerControl = undefined;
 
 let earthquakes = {};
@@ -31,6 +34,7 @@ var myAsyncCounter = new asyncCounter(numEarthquakeMaps, createOverlayMaps);
 
 // **************** FUNCTIONS TO GET COLORS FOR CIRCLES BASED ON MAGNITUDE AND LEGEND ******************
 function getColorNormal(d) {
+
   return d > 5.0  ? '#FF0000' :
          d > 4.0  ? '#ff6600' :
          d > 3.0  ? '#FFCC00' :
@@ -48,7 +52,7 @@ function getColorSignificant(d) {
 // Store our API endpoint inside queryUrl
 // var queryUrl = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
 // var normalEarthquakesQueryUrl = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=1989-10-15&endtime=1989-10-20";//&minmagnitude=2.5&minlatitude=20.0&maxlatitude=50.0&minlongitude=220.0&maxlongitude=300.0";
-var normalEarthquakesQueryUrl = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=" + getDateOneWeekAgo();// + "&endtime=" + today;//&minmagnitude=2.5&minlatitude=20.0&maxlatitude=50.0&minlongitude=220.0&maxlongitude=300.0";
+var normalEarthquakesQueryUrl = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=" + getDateOneWeekAgo() + "&minmagnitude=" + String(minimumEarthquakeMagnitude);// + "&endtime=" + today;//&minmagnitude=2.5&minlatitude=20.0&maxlatitude=50.0&minlongitude=220.0&maxlongitude=300.0";
 
 
 
@@ -255,9 +259,13 @@ function createLegend(){
 
   legend.onAdd = function (map) {
 
-      let div = L.DomUtil.create('div', 'info legend'),
-          grades = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
-          labels = [];
+      // the earthquake grades we will separate colors into for the legend
+      let grades = (minimumEarthquakeMagnitude < 1.0) ? [0.0, 1.0, 2.0, 3.0, 4.0, 5.0] : [1.0, 2.0, 3.0, 4.0, 5.0];
+      
+      // only used if we want to make the labele creation for the grades in the legend more obvious in the code
+      let labels = []; 
+    
+      let div = L.DomUtil.create('div', 'info legend');
 
       div.innerHTML += '<b>Magnitude</b><br>';
 
