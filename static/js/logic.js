@@ -1,3 +1,14 @@
+// Create our map, giving it the streetmap and earthquakes layers to display on load
+var myMap = L.map("map", {
+  center: [
+    37.09, -95.71
+  ],
+  zoom: 5,
+  // layers: [streetmap, earthquakes]
+});
+
+let layerControl = undefined;
+
 let earthquakes = {};
 let significantEarthquakes = {};
 let tectonicPlates = L.geoJson(tectonicPlatesGeoJSON, 
@@ -14,7 +25,7 @@ let tectonicPlates = L.geoJson(tectonicPlatesGeoJSON,
 
 
 let numEarthquakeMaps = 2;
-var myAsyncCounter = new asyncCounter(numEarthquakeMaps, createMap);
+var myAsyncCounter = new asyncCounter(numEarthquakeMaps, createOverlayMaps);
 
 
 
@@ -39,34 +50,12 @@ function getColorSignificant(d) {
 // var normalEarthquakesQueryUrl = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=1989-10-15&endtime=1989-10-20";//&minmagnitude=2.5&minlatitude=20.0&maxlatitude=50.0&minlongitude=220.0&maxlongitude=300.0";
 var normalEarthquakesQueryUrl = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=" + getDateOneWeekAgo();// + "&endtime=" + today;//&minmagnitude=2.5&minlatitude=20.0&maxlatitude=50.0&minlongitude=220.0&maxlongitude=300.0";
 
-// Perform a GET request to the query URL
-d3.json(normalEarthquakesQueryUrl, function(data) {
-  // Once we get a response, send the data.features object to the createFeatures function along with color seting function and pane name
-  earthquakes = createFeatures(data.features, getColorNormal, 'normalEarthquakesPane');
-  
-  myAsyncCounter.increment();
 
-  console.log("earthquakes created");
-  
-  // Sending our earthquakes layer to the createMap function
-  // createMap(earthquakes, tectonicPlates);
-});
 
 
 // Perform a GET request to the query URL
 var significantEarthquakesQueryURL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.geojson";
 
-d3.json(significantEarthquakesQueryURL, function(data) {
-  // Once we get a response, send the data.features object to the createFeatures function
-  significantEarthquakes = createFeatures(data.features, getColorSignificant, 'significantEarthquakesPane');
-  
-  myAsyncCounter.increment();
-
-  console.log("significant earthquakes created");
-
-  // Sending our earthquakes layer to the createMap function
-  // createMap(earthquakes, tectonicPlates);
-});
 
 
 
@@ -120,11 +109,7 @@ function createFeatures(earthquakeData, getColor, paneName) {
 
 }
 
-
-// **************** FUNCTION TO CREATE THE FINAL MAP LAYERS ******************
-function createMap() {  
-// function createMap(earthquakes, tectonicPlates) {
-
+function createAndAddBaseMaps(){
   // Define various map layers
   // var streetmap = L.tileLayer("https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}", {
   //   attribution: "Map data &copy; <a href=\"https://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"https://www.mapbox.com/\">Mapbox</a>",
@@ -205,6 +190,7 @@ function createMap() {
     "Dark Map": darkmap
   };
 
+
   // Create overlay object to hold our overlay layer
   var overlayMaps = {
     Earthquakes: earthquakes,
@@ -212,45 +198,67 @@ function createMap() {
     TectonicPlates: tectonicPlates
   };
 
-  // Create our map, giving it the streetmap and earthquakes layers to display on load
-  var myMap = L.map("map", {
-    center: [
-      37.09, -95.71
-    ],
-    zoom: 5,
-    // layers: [streetmap, earthquakes]
-  });
-
-  // set up our panes and zIndex ordering so they layer correctly when added and removed using the UI control layer
-  myMap.createPane('normalEarthquakesPane');
-  myMap.getPane('normalEarthquakesPane').style.zIndex = 400;
-
-  myMap.createPane('significantEarthquakesPane');
-  myMap.getPane('significantEarthquakesPane').style.zIndex = 401;
-  
-  myMap.createPane('tectonicPlatesPane');
-  myMap.getPane('tectonicPlatesPane').style.zIndex = 399;
-
-  streetmap.addTo(myMap);
-  earthquakes.addTo(myMap);
+  // Create empty overlay object as a placeholder for our overlay layers
+  var overlayMaps = {};
 
 
   // Create a layer control
   // Pass in our baseMaps and overlayMaps
   // Add the layer control to the map
-  L.control.layers(baseMaps, overlayMaps, {
-    collapsed: false
-  }).addTo(myMap);
+  layerControl = L.control.layers(baseMaps, overlayMaps, {collapsed: false});
+
+  // add the initial tile layer, 
+  streetmap.addTo(myMap);
+  layerControl.addTo(myMap);
+  createLegend();
+  // createlayerControl(baseMaps, overlayMaps);
+
+  // set up our panes and zIndex ordering so they layer correctly when added and removed using the UI control layer
+  myMap.createPane('tectonicPlatesPane');
+  myMap.getPane('tectonicPlatesPane').style.zIndex = 399;
+
+  myMap.createPane('normalEarthquakesPane');
+  myMap.getPane('normalEarthquakesPane').style.zIndex = 400;
+
+  myMap.createPane('significantEarthquakesPane');
+  myMap.getPane('significantEarthquakesPane').style.zIndex = 401;
+
+  // add the tectonic plates as soon as possible
+  layerControl.addOverlay(tectonicPlates, "Tectonic Plates");
+  tectonicPlates.addTo(myMap);
+
+}
 
 
+
+// **************** FUNCTION TO CREATE THE FINAL MAP LAYERS ******************
+function createOverlayMaps() {  
+// function createOverlayMaps(earthquakes, tectonicPlates) {
+
+  // add the overlay layers to the Layer Control object
+  layerControl.addOverlay(earthquakes, "Earthquakes");
+  
+  // remoe the significantEarthquakes Layer
+  myMap.removeLayer(significantEarthquakes);
+  // earthquakes.addTo(myMap);
+
+  // Add the Earthquakes Layer to the map
+  earthquakes.addTo(myMap);
+
+}
+
+
+
+
+function createLegend(){
   let legend = L.control({position: 'bottomright'});
 
   legend.onAdd = function (map) {
-  
+
       let div = L.DomUtil.create('div', 'info legend'),
           grades = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0],
           labels = [];
-  
+
       div.innerHTML += '<b>Magnitude</b><br>';
 
       // loop through our density intervals and generate a label with a colored square for each interval
@@ -266,12 +274,50 @@ function createMap() {
 
       return div;
   };
-  
+
   legend.addTo(myMap);
-
-
-
 }
+
+
+
+
+// **************** MAIN PROGRAM ******************
+// **************** MAIN PROGRAM ******************
+// **************** MAIN PROGRAM ******************
+
+createAndAddBaseMaps();
+
+// Perform a GET request to the query URL
+d3.json(normalEarthquakesQueryUrl, function(data) {
+  // Once we get a response, send the data.features object to the createFeatures function along with color seting function and pane name
+  earthquakes = createFeatures(data.features, getColorNormal, 'normalEarthquakesPane');
+  
+  myAsyncCounter.increment();
+
+  console.log("earthquakes created");
+  
+  // Sending our earthquakes layer to the createMap function
+  // createMap(earthquakes, tectonicPlates);
+});
+
+
+d3.json(significantEarthquakesQueryURL, function(data) {
+  // Once we get a response, send the data.features object to the createFeatures function
+  significantEarthquakes = createFeatures(data.features, getColorSignificant, 'significantEarthquakesPane');
+  
+  myAsyncCounter.increment();
+
+  console.log("significant earthquakes created");
+
+  layerControl.addOverlay(significantEarthquakes, "Significant");
+  significantEarthquakes.addTo(myMap);
+  // significantEarthquakes.addTo(myMap);
+  // Sending our earthquakes layer to the createMap function
+  // createMap(earthquakes, tectonicPlates);
+});
+
+
+
 
 
 
